@@ -1,6 +1,8 @@
 # BazenBot
 Automatic pool control using arduino NANO
 
+This is my first arduino project.
+
 Parts:
 
 1/ Arduino NANO
