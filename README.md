@@ -26,4 +26,9 @@ Parts:
 11/ 1x resitor 4k7Ω
 
 Photos of construction: 
+
 http://rellik.rajce.idnes.cz/BazenBot/
+
+Video:
+
+https://www.youtube.com/watch?v=J7qZgJJ588w&t=6s
