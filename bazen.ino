@@ -9,8 +9,11 @@ LiquidCrystal_I2C lcd(0x3F,16,2);
 // -------- Nastavení čidel -------------
 #include <DallasTemperature.h>
 DallasTemperature sensors(&oneWire);
-DeviceAddress BAZEN = { 0x28, 0xFF, 0x99, 0x70, 0x01, 0x17, 0x03, 0x6F };
-DeviceAddress PANEL = { 0x28, 0xFF, 0xF1, 0x88, 0x01, 0x17, 0x03, 0x2D };
+DeviceAddress BAZEN = { 0x28, 0xFF, 0x99, 0x70, 0x01, 0x17, 0x03, 0x6F }; // adresa čidla pro bazén
+DeviceAddress PANEL = { 0x28, 0xFF, 0xF1, 0x88, 0x01, 0x17, 0x03, 0x2D }; // adresa čidla pro solární panel
+/* Zjištění adres pro čidla:
+ * https://codebender.cc/sketch:75043#DS18B20%20Address%20Finder.ino
+ */
 
 // ------- Nastavení vstupů a výstupů--------
 int releFiltr = A0; // hlavní čerpadlo
