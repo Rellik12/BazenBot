@@ -40,6 +40,7 @@ Funkce:
 Automatika funguje ve dvou režimech:
 
 1/ Brzo ráno a pozdě večer dle nastaveného času spouští filtraci a dávkuje chlor. Filtrace je nastavená na dobu jedné hodiny a dávka chloru dle průtoku čerpadla a velikosti bazénu na 40 sekund.
+
 2/ Mimo předchozí nastavené filtrování hlídá teplotu solárního panelu a teplotu vody v bazénu. Pokud je teplota bazénu nízká (v kódu pod 24°C) a teplota soláru vyšší, tak zapne filtraci a přepne ventil pro ohřev. Na čidle teploty soláru je pak nastavená hysterze, která omezuje časté spínání čerpadla. Dále pak pokud je už teplota bazénu na požadované teplotě, tak se nic neděje a to i když je teplota soláru vyšší.
 
 
