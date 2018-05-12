@@ -1,39 +1,34 @@
 #include "Wire.h"
 #include <OneWire.h>
-OneWire oneWire(11); // pin čidel
+OneWire oneWire(2); // pin čidel
 
 // ----------- Display ------------
 #include <LiquidCrystal_I2C.h>
-LiquidCrystal_I2C lcd(0x3F,16,2);
+LiquidCrystal_I2C lcd(0x3F,20,4);
 
 // -------- Nastavení čidel -------------
 #include <DallasTemperature.h>
 DallasTemperature sensors(&oneWire);
-DeviceAddress BAZEN = { 0x28, 0xFF, 0x99, 0x70, 0x01, 0x17, 0x03, 0x6F }; // adresa čidla pro bazén
-DeviceAddress PANEL = { 0x28, 0xFF, 0xF1, 0x88, 0x01, 0x17, 0x03, 0x2D }; // adresa čidla pro solární panel
+DeviceAddress PANEL = { 0x28, 0xFF, 0x99, 0x70, 0x01, 0x17, 0x03, 0x6F }; // adresa čidla pro solární panel
+DeviceAddress BAZEN = { 0x28, 0xFF, 0xF1, 0x88, 0x01, 0x17, 0x03, 0x2D }; // adresa čidla pro bazén
 /* Zjištění adres pro čidla:
  * https://codebender.cc/sketch:75043#DS18B20%20Address%20Finder.ino
  */
 
 // ------- Nastavení vstupů a výstupů--------
-int releFiltr = A0; // hlavní čerpadlo
-int releChlor = A1; // čerpadlo chloru
-int releVentil = A2; // ventil ohřevu
-int ledOn = 2; // Zelená (dvoubarevná LED)
-int ledOff = 10; // červená (dvoubarevná LED)
-int ledFiltr = 9; // zelená LED
-int ledChlor = 8; // žlutá LED
-int ledVentil = 7; // modrá LED
+int releFiltr = A2; // hlavní čerpadlo
+int releChlor = A0; // čerpadlo chloru
+int releVentil = A1; // ventil ohřevu
 
-int buttonOn = 5; // zapnutí automatu
-int buttonOff = 6; // vypnutí všeho
-int buttonFiltr = 4; // zapnutí filtrace
-int buttonChlor = 3; // Dávka chloru
+int buttonOn = 4; // zapnutí automatu
+int buttonOff = 3; // vypnutí všeho
+int buttonFiltr = 6; // zapnutí filtrace
+int buttonChlor = 5; // Dávka chloru
 
 // nastavení proměnných pro teplotu a funkce
-float Tbazen;
-float Tpanel;
+float Tbazen, Tpanel;
 boolean filtraceAuto, cisteni, chlor;
+int vodaTemp = 25;
 
 // nastavení časování
 long previousMillis = 0;
@@ -61,33 +56,32 @@ void setup(){
   pinMode(releFiltr, OUTPUT); 
   pinMode(releChlor, OUTPUT); 
   pinMode(releVentil, OUTPUT);
-  pinMode(ledOn, OUTPUT);
-  pinMode(ledOff, OUTPUT);
-  pinMode(ledFiltr, OUTPUT); 
-  pinMode(ledChlor, OUTPUT); 
-  pinMode(ledVentil, OUTPUT);
 
   pinMode(buttonOn, INPUT_PULLUP); 
   pinMode(buttonOff, INPUT_PULLUP); 
   pinMode(buttonFiltr, INPUT_PULLUP); 
   pinMode(buttonChlor, INPUT_PULLUP);
+
+  digitalWrite(releFiltr, HIGH);
+  digitalWrite(releChlor, HIGH);
+  digitalWrite(releVentil, HIGH);
   
   lcd.init();
   lcd.backlight();
-  lcd.setCursor(0,0);
+  lcd.setCursor(3,1);
   lcd.print("BAZENBOT 2018");
-  lcd.setCursor(0,1);
+  lcd.setCursor(3,2);
   lcd.print("(R) Dusan Vala");
-  delay(2000);
-  lcd.setCursor(0,1);
-  lcd.print("                ");
+  delay(3000);
+  lcd.clear();
   lcd.setCursor(0,1);
   lcd.print("Vypnuto");
-  digitalWrite(ledOff, HIGH);
+  lcd.setCursor(0,0);
+  lcd.print("                ");
    
   // ---------- POUZE PRO NASTAVENÍ ČASU! ---------------------
   // sekundy, minuty, hodiny, den v týdnu (1- neděle), datum, měsíc, rok
-  //setDS3231time(0,8,19,7,16,12,17);
+  //setDS3231time(00,00,9,1,8,4,18);
   // ---------- POUZE PRO NASTAVENÍ ČASU! KONEC ---------------
 
   
@@ -112,7 +106,7 @@ dayOfMonth, byte month, byte year){
   Wire.endTransmission();
 }*/
 
-void readDS3231time(byte *second, byte *minute, byte *hour){
+void readDS3231time(byte *second, byte *minute, byte *hour, byte *dayOfWeek, byte *dayOfMonth, byte *month, byte *year){
   Wire.beginTransmission(DS3231_I2C_ADDRESS);
   Wire.write(0);
   Wire.endTransmission();
@@ -120,12 +114,19 @@ void readDS3231time(byte *second, byte *minute, byte *hour){
   *second = bcdToDec(Wire.read() & 0x7f);
   *minute = bcdToDec(Wire.read());
   *hour = bcdToDec(Wire.read() & 0x3f);
+  *dayOfWeek = bcdToDec(Wire.read());
+  *dayOfMonth = bcdToDec(Wire.read());
+  *month = bcdToDec(Wire.read());
+  *year = bcdToDec(Wire.read());
 }
   // ------- Hodiny ---------
 void displayTime(){
-  byte second, minute, hour;
-  readDS3231time(&second, &minute, &hour); 
+  byte second, minute, hour, dayOfWeek, dayOfMonth, month, year;
+  readDS3231time(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year); 
   lcd.setCursor(0,0);
+  if (hour<10){
+      lcd.print(" ");
+    }
   lcd.print(hour, DEC);
   lcd.print(":");
     if (minute<10){
@@ -136,7 +137,14 @@ void displayTime(){
     if (second<10){
       lcd.print("0");
     }
-  lcd.print(second, DEC);  
+  lcd.print(second, DEC); 
+  lcd.print(" ");
+  lcd.print(dayOfMonth, DEC);
+  lcd.print("/");
+  lcd.print(month, DEC);
+  lcd.print(" 20");
+  lcd.print(year, DEC); 
+    
 }
 
 //-------------------- LOOP --------------
@@ -148,12 +156,10 @@ void loop(){
               previousButton = currentMillis; 
               sensors.requestTemperatures();
               off();
-              digitalWrite(ledOn, HIGH);
-              digitalWrite(ledOff, LOW);
               lcd.setCursor(0,1);
-              lcd.print("                ");
+              lcd.print("                    ");
               lcd.setCursor(0,1);
-              lcd.print("Automat");
+              lcd.print("Automaticky provoz");
               filtraceAuto = true;
         }
   }
@@ -165,12 +171,10 @@ void loop(){
               previousButton = currentMillis; 
               sensors.requestTemperatures();    
               off();
-              digitalWrite(ledOn, HIGH);
-              digitalWrite(ledOff, LOW);
               lcd.setCursor(0,1);
-              lcd.print("                ");
+              lcd.print("                    ");
               lcd.setCursor(0,1);
-              lcd.print("Cisteni/Filtrace");
+              lcd.print("Cisteni / Filtrace");
               cisteni = true;
         }
    }
@@ -182,12 +186,13 @@ void loop(){
                previousButton = currentMillis; 
                sensors.requestTemperatures();     
                off();
-               digitalWrite(ledOn, HIGH);
-               digitalWrite(ledOff, LOW);
                digitalWrite(releChlor, HIGH);
-               digitalWrite(ledChlor, HIGH);
                lcd.setCursor(0,1);
-               lcd.print("                ");
+               lcd.print("                    ");
+               lcd.setCursor(14,2);
+               lcd.print("                    ");
+               lcd.setCursor(14,3);
+               lcd.print("                    ");
                lcd.setCursor(0,1);
                lcd.print("Davka chloru");
                chlor = true;
@@ -208,29 +213,26 @@ void loop(){
   filtrace(); // funkce pro filtraci nebo čištění
   displayTime(); // zobrazení hodin
   bazenTemp(); // zobrazení teploty bazénu
-    if(filtraceAuto) { // pokud je aktivní automatický režim,
-        panelTemp(); // je zobrazena teplota soláního panelu
-    }
+  panelTemp(); // je zobrazena teplota soláního panelu
 }
 //-------------------- LOOP END ----------------
 
 // ---------- VYPNUTÍ VŠECH FUNKCÍ --------------
 void off(){
-      digitalWrite(releFiltr, LOW);
-      digitalWrite(releChlor, LOW);
-      digitalWrite(releVentil, LOW);
-      digitalWrite(ledFiltr, LOW);
-      digitalWrite(ledChlor, LOW);
-      digitalWrite(ledVentil, LOW);
-      digitalWrite(ledOn, LOW);
-      digitalWrite(ledOff, HIGH);
+      digitalWrite(releFiltr, HIGH);
+      digitalWrite(releChlor, HIGH);
+      digitalWrite(releVentil, HIGH);
       cisteni = false;
       filtraceAuto = false;
       chlor = false;
       lcd.setCursor(0,1);
-      lcd.print("                ");
+      lcd.print("                    ");
       lcd.setCursor(0,1);
       lcd.print("Vypnuto");
+      lcd.setCursor(0,2);
+      lcd.print("                    ");
+      lcd.setCursor(0,3);
+      lcd.print("                    ");
 }
 
 /* zapnutí pouze filtrace nebo dávky chloru
@@ -244,34 +246,29 @@ void off(){
  */
 void filtrace(){
   if(cisteni || (chlor)){// pokud je aktivována filtrace, nebo extra dávka chloru
-      digitalWrite(releFiltr, HIGH); //zapni čerpadlo
-      digitalWrite(ledFiltr, HIGH); //zapni led
-      digitalWrite(releVentil, LOW); //a vypni ventil pokud by byl otevřený
+      digitalWrite(releFiltr, LOW); //zapni čerpadlo
+      digitalWrite(releVentil, HIGH); //a vypni ventil pokud by byl otevřený
       if(chlor) { // pokud je aktuvována extra dávka chloru
-         byte sec, minuty, hod;
-         readDS3231time(&sec, &minuty, &hod);
-         if((sec >= 5 & (sec < 45))) { // nastavení 40s dávky chloru (nutno zapnout mezi 0-5 sec)
-        digitalWrite(releChlor, HIGH);
-        digitalWrite(ledChlor, HIGH);
+         byte second, minute, hour, dayOfWeek, dayOfMonth, month, year;
+         readDS3231time(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year);
+         if((second >= 5 & (second < 45))) { // nastavení 40s dávky chloru (nutno zapnout mezi 0-5 sec)
+        digitalWrite(releChlor, LOW);
          } else {
-              if(sec == 59) { // v 59 sekundě přejde systém zpět do automatického režimu
+              if(second == 59) { // v 59 sekundě přejde systém zpět do automatického režimu
                 lcd.setCursor(0,1);
                 lcd.print("                ");
                 lcd.setCursor(0,1);
-                lcd.print("Automat");
-                digitalWrite(releFiltr, LOW);
-                digitalWrite(ledFiltr, LOW);
+                lcd.print("Automaticky provoz");
+                digitalWrite(releFiltr, HIGH);
                 filtraceAuto = true;
                 chlor = false;
               }
-              digitalWrite(releChlor, LOW);
-              digitalWrite(ledChlor, LOW);
+              digitalWrite(releChlor, HIGH);
          }
       }
   } else {
     if(!filtraceAuto){
-    digitalWrite(releFiltr, LOW);
-    digitalWrite(ledFiltr, LOW);
+    digitalWrite(releFiltr, HIGH);
     }
   }
 }
@@ -281,22 +278,18 @@ void filtrace(){
  *  Mimo časovou filtraci zapíná denní program ohřevu bazénu
  */
 void filtraceChlor(){
- byte sec, minuty, hod;
- readDS3231time(&sec, &minuty, &hod);
+  byte second, minute, hour, dayOfWeek, dayOfMonth, month, year;
+  readDS3231time(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year);
   if(filtraceAuto & (!cisteni & (!chlor))) {
 
   // --------------- VEČER / RÁNO------------
-    if((hod >= 21 & (hod < 22) || (hod >= 5 & (hod < 6)))) { // filtrace pojede mezi 21-22hod večer a mezi 5-6hod ráno
-      digitalWrite(releFiltr, HIGH); //zapni čerpadlo 
-      digitalWrite(ledFiltr, HIGH); //zapni LED
-      digitalWrite(releVentil, LOW);
-      digitalWrite(ledVentil, LOW);   
-      if((minuty == 0) & (sec >=5) & (sec <=45)) { // u každé filtrace bude přidán chlor po dobu 40s
-          digitalWrite(releChlor, HIGH);   
-          digitalWrite(ledChlor, HIGH);    
+    if((hour >= 21 & (hour < 22) || (hour >= 5 & (hour< 6)))) { // filtrace pojede mezi 21-22hod večer a mezi 5-6hod ráno
+      digitalWrite(releFiltr, LOW); //zapni čerpadlo 
+      digitalWrite(releVentil, HIGH);
+      if((minute == 1) & (second >=5) & (second <=45)) { // u každé filtrace bude přidán chlor po dobu 40s
+          digitalWrite(releChlor, LOW);   
         } else {
-            digitalWrite(releChlor, LOW);
-            digitalWrite(ledChlor, LOW);
+            digitalWrite(releChlor, HIGH);
             }
       
       } else {
@@ -314,33 +307,70 @@ void teplota(){
       sensors.requestTemperatures();
       Tbazen = sensors.getTempC(BAZEN); //teplota bazenu
       Tpanel = sensors.getTempC(PANEL); //teplota panelu
-      float hystereze = 3; //rozdíl teplot pro zapnutí a vypnutí
-
+ 
       if(Tbazen == -127 || (Tpanel == -127)){ // pokud není čidlo připojeno hlásí teplotu -127
-              lcd.setCursor(9, 0);
-              lcd.print("Error01");
+              lcd.setCursor(14, 2);
+              lcd.print("Ohrev");
+              lcd.setCursor(14, 3);
+              lcd.print("OFF");
               } else {
-                   if(Tbazen <= 24) {//pokud je teplota bazénu menší
-                      if((Tpanel - 28) > hystereze) { //a teplota panelu větší
-                            digitalWrite(releFiltr, HIGH); // zapni čerpadlo
-                            digitalWrite(ledFiltr, HIGH); //zapni led 
-                            digitalWrite(releVentil, HIGH); // a uzavři ventil
-                            digitalWrite(ledVentil, HIGH); // zapni led
+                   if(Tbazen <= 25) {//pokud je teplota bazénu menší
+                      if((Tpanel - Tbazen) >= 10 ) { //a teplota panelu větší
+                            digitalWrite(releFiltr, LOW); // zapni čerpadlo
+                            digitalWrite(releVentil, LOW); // a uzavři ventil
+                            lcd.setCursor(14, 2);
+                            lcd.print("       ");
+                            lcd.setCursor(14, 2);
+                            lcd.print("Ohrev");
+                            lcd.setCursor(14, 3);
+                            lcd.print("       ");
+                            lcd.setCursor(14, 3);
+                            lcd.print("ON");
                       } else {
-                        if((28 - Tpanel) > hystereze) { // pokud teplota panelu klesne
-                          digitalWrite(releFiltr, LOW); // vypni čerpadlo
-                          digitalWrite(ledFiltr, LOW); // vypni led
+                        if((Tpanel - Tbazen) >= 3) { // pokud teplota panelu klesne na teplotu bazénu
+                          digitalWrite(releFiltr, HIGH); // vypni čerpadlo
+                          lcd.setCursor(14, 2);
+                          lcd.print("      ");
+                          lcd.setCursor(14, 2);
+                          lcd.print("Ohrev");
+                          lcd.setCursor(14, 3);
+                          lcd.print("       ");
+                          lcd.setCursor(14, 3);
+                          lcd.print("OFF");
                         }
                       }
-              
-                  } else { // pokud je bazén na požadované teplotě
-                    digitalWrite(releFiltr, LOW); // vypni čerpadlo
-                    digitalWrite(ledFiltr, LOW); // vypni led
-                    digitalWrite(releVentil, LOW); // otevři ventil
-                    digitalWrite(ledVentil, LOW); // zhasni led
-                  }
-                }
-  }
+                  } else { 
+                    // pokud je bazén na požadované teplotě
+                    bazenOk();
+                    }
+                    
+         // Chlazení vody
+        /* if((Tbazen >= 27) && (Tpanel < (vodaTemp-3))) { //pokud je teplota bazénu větší, zapne chlazení
+                          digitalWrite(releFiltr, LOW); // zapni čerpadlo
+                          digitalWrite(releVentil, LOW); // a uzavři ventil
+                          lcd.setCursor(12, 2);
+                          lcd.print("Chlazeni");
+                          lcd.setCursor(14, 3);
+                          lcd.print("vody");
+                      } else {
+                         // pokud je bazén na požadované teplotě
+                          bazenOk();
+                        }*/
+                 } // konec else špatných čidel
+  } // konec časování čtení čidel                     
+}
+
+void bazenOk(){
+  digitalWrite(releFiltr, HIGH); // vypni čerpadlo
+  digitalWrite(releVentil, HIGH); // otevři ventil
+  lcd.setCursor(14, 2);
+  lcd.print("      ");
+  lcd.setCursor(14, 2);
+  lcd.print("Voda");
+  lcd.setCursor(14, 3);
+  lcd.print("       ");
+  lcd.setCursor(14, 3);
+  lcd.print("OK");
 }
 
 // ---------- TEPLOTA BAZÉNU ----------- 
@@ -352,10 +382,11 @@ void bazenTemp(){
           sensors.requestTemperatures();
           Tbazen = sensors.getTempC(BAZEN);
           if(Tbazen == -127){
-              lcd.setCursor(9, 0);
-              lcd.print("Error");
+              lcd.setCursor(0, 2);
+              lcd.print("Error00");
           } else {
-               lcd.setCursor(9, 0);
+               lcd.setCursor(0, 2);
+               lcd.print("Voda:");
                lcd.print(Tbazen);
                lcd.print((char)223);
                lcd.print("C");
@@ -372,10 +403,11 @@ void panelTemp(){
           sensors.requestTemperatures();
           Tpanel = sensors.getTempC(PANEL);
           if(Tpanel == -127){
-              lcd.setCursor(9, 1);
-              lcd.print("Error");
+              lcd.setCursor(0, 3);
+              lcd.print("Error01");
           } else {
-               lcd.setCursor(9, 1);
+               lcd.setCursor(0, 3);
+               lcd.print("Solar:");
                lcd.print(Tpanel);
                lcd.print((char)223);
                lcd.print("C");
